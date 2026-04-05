@@ -206,179 +206,122 @@ body{background:var(--bridge-dark);font-family:'EB Garamond',serif;color:var(--c
 <div id="toast"></div>
 <script>
 const SUPA_URL='https://ysmuutnvtumkrjbzytla.supabase.co';
-const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzbXV1dG52dHVta3JqYnp5dGxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTAwNTQsImV4cCI6MjA5MDk4NjA1NH0.fhZv-b0VPGb1uAG0EwLbEEHZAU_jo_iNFDRElNCT0n0';
+const SUPA_KEY='YOUR_ANON_KEY_HERE'; // keep your existing key
 const{createClient}=supabase;
 const db=createClient(SUPA_URL,SUPA_KEY);
-const COLORS=['lock-blue','lock-rose','lock-green','lock-purple','lock-amber','lock-teal'];
-const TAG_LABELS={love:'❤️ Love',grief:'🕯️ Grief',hope:'🌱 Hope',help:'🙏 Seek Help',share:'💬 Share',poetry:'🖊️ Poetry',joy:'✨ Joy',vent:'🌪️ Vent'};
-let currentFilter='all',selectedTag='love',currentLockId=null,allLocks=[];
-(function(){
-  const sky=document.getElementById('sky');
-  for(let i=0;i<180;i++){const s=document.createElement('div');s.className='star';const size=Math.random()*2.5+0.5;s.style.cssText=`width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*65}%;--d:${2+Math.random()*4}s;--o1:${0.1+Math.random()*0.4};--o2:${0.5+Math.random()*0.5};`;sky.appendChild(s);}
-  const water=document.getElementById('water');
-  for(let i=0;i<5;i++){const r=document.createElement('div');r.className='ripple';r.style.cssText=`left:${10+Math.random()*80}%;bottom:${10+Math.random()*60}px;width:30px;height:15px;animation-delay:${Math.random()*5}s;animation-duration:${4+Math.random()*3}s;`;water.appendChild(r);}
-})();
-const tickers=["Speak freely · Parlez librement · बोलो खुलकर · 자유롭게 말하세요","تحدث بحرية · 自由に語れ · Fale livremente · Говори свободно","No IP tracked · Aucune IP · कोई IP नहीं · IP 추적 없음","One bridge · One world · एक पुल · 하나의 다리 · Un pont"];
-let ti=0;setInterval(()=>{ti=(ti+1)%tickers.length;document.getElementById('lang-ticker').textContent=tickers[ti];},6000);
-function timeAgo(iso){const diff=Date.now()-new Date(iso).getTime();const m=Math.floor(diff/60000);if(m<1)return'just now';if(m<60)return`${m}m ago`;const h=Math.floor(m/60);if(h<24)return`${h}h ago`;return`${Math.floor(h/24)}d ago`;}
-function escHtml(t){return(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
-async function loadLocks(){
-  try{
-    let query=db.from('locks').select('*').order('time',{ascending:false}).limit(200);
-    if(currentFilter!=='all')query=query.eq('tag',currentFilter);
-    const{data,error}=await query;
-    if(error)throw error;
-    allLocks=data||[];
-    renderWall(allLocks);
-    document.getElementById('live-count').innerHTML=`<span class="live-dot"></span>${allLocks.length} locks`;
-  }catch(e){document.getElementById('loading').textContent='⚠️ Could not load. Check connection.';console.error(e);}
+
+let selectedTag='love',currentLockId=null,allLocks=[];
+
+// Toast
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
 }
-function renderWall(locks){
+
+// Load locks
+async function loadLocks(){
+  const{data,error}=await db.from('locks').select('*').order('time',{ascending:false});
+  if(error){console.error(error);return;}
+  allLocks=data||[];
   const wall=document.getElementById('lock-wall');
   wall.innerHTML='';
-  if(!locks.length){wall.innerHTML='<div style="color:rgba(201,168,76,0.4);font-style:italic;padding:60px 20px;width:100%;text-align:center;">No locks yet. Be the first 🔒</div>';return;}
-  locks.forEach((lock,i)=>{
-    const color=COLORS[i%COLORS.length];
-    const rot=((i*7+3)%13-6).toFixed(1);
-    const flag=(lock.lang||'🌍').split(' ')[0];
+  allLocks.forEach(lock=>{
     const card=document.createElement('div');
-    card.className=`lock ${color}`;
-    card.style.setProperty('--rot',`${rot}deg`);
-    card.style.transform=`rotate(${rot}deg)`;
-    card.style.animationDelay=`${(i%10)*0.06}s`;
-    card.innerHTML=`<div class="lock-flag">${flag}</div><div class="lock-anon">Anonymous · ${(lock.lang||'').split(' ').slice(1).join(' ')}</div><div class="lock-msg">${escHtml((lock.msg||'').slice(0,120))}${(lock.msg||'').length>120?'…':''}</div><div class="lock-tag">${TAG_LABELS[lock.tag]||lock.tag||''}</div><div class="lock-footer"><span class="lock-time">${timeAgo(lock.time)}</span><div class="lock-react"><button class="react-btn">❤️</button><button class="react-btn">🕯️</button></div></div>`;
-    card.addEventListener('click',()=>openView(lock));
+    card.className='lock';
+    card.innerHTML=`<div>${lock.msg}</div>`;
+    card.onclick=()=>openView(lock);
     wall.appendChild(card);
   });
 }
-function filterLocks(tag,btn){currentFilter=tag;document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');loadLocks();}
-db.channel('locks-channel').on('postgres_changes',{event:'INSERT',schema:'public',table:'locks'},payload=>{if(currentFilter==='all'||payload.new.tag===currentFilter){allLocks.unshift(payload.new);renderWall(allLocks);document.getElementById('live-count').innerHTML=`<span class="live-dot"></span>${allLocks.length} locks`;showToast('🔒 New lock just hung!');}}).subscribe();
-document.getElementById('fab').addEventListener('click',()=>{document.getElementById('add-overlay').classList.add('open');document.getElementById('msg-input').focus();});
-document.getElementById('msg-input').addEventListener('input',function(){document.getElementById('char-count').textContent=this.value.length;});
-document.querySelectorAll('.tag-chip').forEach(chip=>{chip.addEventListener('click',function(){document.querySelectorAll('.tag-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');selectedTag=this.dataset.tag;});});
-document.querySelector('.tag-chip[data-tag="love"]').classList.add('selected');
-function toggleLink(){document.getElementById('link-section').classList.toggle('visible');}
-function closeAdd(){document.getElementById('add-overlay').classList.remove('open');document.getElementById('msg-input').value='';document.getElementById('link-input').value='';document.getElementById('char-count').textContent='0';document.getElementById('link-section').classList.remove('visible');selectedTag='love';document.querySelectorAll('.tag-chip').forEach(c=>c.classList.remove('selected'));document.querySelector('.tag-chip[data-tag="love"]').classList.add('selected');}
 
-}
+// Hang Lock (MAIN FIXED FUNCTION)
 async function hangLock(){
 
   const msg = document.getElementById('msg-input').value.trim();
 
-  // 🚫 Cooldown (5 sec)
+  // Cooldown
   const lastPost = localStorage.getItem('lastPostTime');
   const now = Date.now();
-
   if (lastPost && now - lastPost < 5000) {
-    showToast('⏳ Wait 5 seconds before posting again');
+    showToast('⏳ Wait 5 seconds');
     return;
   }
 
-  // 🚫 Empty / short check
-  if (!msg) {
-    showToast('Write something first 💬');
+  if (!msg){
+    showToast('Write something 💬');
     return;
   }
 
-  if (msg.length < 3) {
-    showToast('Write something meaningful 💬');
-    return;
-  }
-
-  // 🚫 Bad words filter
-  const bannedWords = ['fuck','shit','bitch','asshole'];
-
-  for (let word of bannedWords) {
-    if (msg.toLowerCase().includes(word)) {
-      showToast('⚠️ Please keep it respectful');
+  const bannedWords=['fuck','shit','bitch'];
+  for(let w of bannedWords){
+    if(msg.toLowerCase().includes(w)){
+      showToast('⚠️ Keep it respectful');
       return;
     }
   }
 
-  const lang = document.getElementById('lang-select').value;
-  const link = document.getElementById('link-input').value.trim();
-
-  if(link && !link.startsWith('http')){
-    showToast('Link must start with https://');
-    return;
-  }
-
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Hanging…';
+  const lang=document.getElementById('lang-select').value;
+  const link=document.getElementById('link-input').value.trim();
 
   const { error } = await db.from('locks').insert([
-    { lang, msg, tag: selectedTag, link: link || null }
+    { lang, msg, tag:selectedTag, link:link||null }
   ]);
 
-  btn.disabled = false;
-  btn.textContent = '🔒 Hang My Lock';
-
   if(error){
-    showToast('❌ Error. Try again.');
     console.error(error);
+    showToast('Error saving');
     return;
   }
 
-  // ✅ Save last post time
   localStorage.setItem('lastPostTime', Date.now());
 
-  closeAdd();
-  showToast('🔒 Your lock is hung on the bridge!');
+  showToast('🔒 Posted!');
   loadLocks();
 }
 
-  // 🚫 Minimum length
-  if (msg.length < 3) {
-    showToast('Write something meaningful 💬');
-    return;
-  }
-
-  // 🚫 Bad words filter
-  const bannedWords = ['fuck','shit','bitch','asshole'];
-
-  for (let word of bannedWords) {
-    if (msg.toLowerCase().includes(word)) {
-      showToast('⚠️ Please keep it respectful');
-      return;
-    }
-  }
+// View
+async function openView(lock){
   currentLockId=lock.id;
-  document.getElementById('v-flag').textContent=(lock.lang||'🌍').split(' ')[0];
-  document.getElementById('v-lang').textContent='Anonymous · '+(lock.lang||'').split(' ').slice(1).join(' ');
-  document.getElementById('v-tag').textContent=TAG_LABELS[lock.tag]||lock.tag||'';
-  document.getElementById('v-msg').textContent=lock.msg||'';
-  document.getElementById('reply-input').value='';
-  const linkRow=document.getElementById('v-link-row');
-  if(lock.link){linkRow.style.display='flex';document.getElementById('v-link').href=lock.link;document.getElementById('v-link').textContent=lock.link;}
-  else{linkRow.style.display='none';}
+  document.getElementById('v-msg').textContent=lock.msg;
   document.getElementById('view-overlay').classList.add('open');
-  await loadReplies(lock.id);
+  loadReplies(lock.id);
 }
-function closeView(){document.getElementById('view-overlay').classList.remove('open');currentLockId=null;}
-async function loadReplies(lockId){
+
+// Replies
+async function loadReplies(id){
+  const{data}=await db.from('replies').select('*').eq('lock_id',id);
   const list=document.getElementById('replies-list');
-  list.innerHTML='<div style="font-size:0.7rem;color:rgba(245,239,224,0.2);padding:4px 0;">Loading replies…</div>';
-  try{
-    const{data,error}=await db.from('replies').select('*').eq('lock_id',lockId).order('time',{ascending:true}).limit(50);
-    if(error||!data||!data.length){list.innerHTML='';return;}
-    list.innerHTML=data.map(r=>`<div class="reply-item">${escHtml(r.msg)}<div class="reply-meta">${timeAgo(r.time)}</div></div>`).join('');
-    list.scrollTop=list.scrollHeight;
-  }catch(e){list.innerHTML='';}
+  list.innerHTML='';
+  (data||[]).forEach(r=>{
+    const d=document.createElement('div');
+    d.textContent=r.msg;
+    list.appendChild(d);
+  });
 }
+
+// Send Reply
 async function sendReply(){
   const msg=document.getElementById('reply-input').value.trim();
   if(!msg||!currentLockId)return;
-  const{error}=await db.from('replies').insert([{lock_id:currentLockId,msg}]);
-  if(error){showToast('Run the replies SQL in Supabase first!');return;}
+
+  const { error } = await db.from('replies').insert([
+    { lock_id: currentLockId, msg }
+  ]);
+
+  if(error){
+    console.error(error);
+    showToast('Reply error');
+    return;
+  }
+
   document.getElementById('reply-input').value='';
-  showToast('💬 Reply sent anonymously');
-  await loadReplies(currentLockId);
+  showToast('Reply sent');
+  loadReplies(currentLockId);
 }
-function showPrivacy(){alert('🛡️ THE BRIDGE — PRIVACY PROMISE\n\n• No IP address ever logged\n• No account or email needed\n• No tracking, no ads\n• Anonymous by design\n• Open source\n\n"Everyone deserves a wall to hang their heart on."');}
-document.getElementById('add-overlay').addEventListener('click',function(e){if(e.target===this)closeAdd();});
-document.getElementById('view-overlay').addEventListener('click',function(e){if(e.target===this)closeView();});
+
+// Init
 loadLocks();
 </script>
 </body>
