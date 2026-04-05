@@ -261,7 +261,6 @@ document.querySelector('.tag-chip[data-tag="love"]').classList.add('selected');
 function toggleLink(){document.getElementById('link-section').classList.toggle('visible');}
 function closeAdd(){document.getElementById('add-overlay').classList.remove('open');document.getElementById('msg-input').value='';document.getElementById('link-input').value='';document.getElementById('char-count').textContent='0';document.getElementById('link-section').classList.remove('visible');selectedTag='love';document.querySelectorAll('.tag-chip').forEach(c=>c.classList.remove('selected'));document.querySelector('.tag-chip[data-tag="love"]').classList.add('selected');}
 
-}
 async function hangLock(){
 
   const msg = document.getElementById('msg-input').value.trim();
