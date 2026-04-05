@@ -260,20 +260,90 @@ document.querySelectorAll('.tag-chip').forEach(chip=>{chip.addEventListener('cli
 document.querySelector('.tag-chip[data-tag="love"]').classList.add('selected');
 function toggleLink(){document.getElementById('link-section').classList.toggle('visible');}
 function closeAdd(){document.getElementById('add-overlay').classList.remove('open');document.getElementById('msg-input').value='';document.getElementById('link-input').value='';document.getElementById('char-count').textContent='0';document.getElementById('link-section').classList.remove('visible');selectedTag='love';document.querySelectorAll('.tag-chip').forEach(c=>c.classList.remove('selected'));document.querySelector('.tag-chip[data-tag="love"]').classList.add('selected');}
-async function hangLock(){
-  const msg=document.getElementById('msg-input').value.trim();
-  if(!msg){showToast('Write something first 💬');return;}
-  const lang=document.getElementById('lang-select').value;
-  const link=document.getElementById('link-input').value.trim();
-  if(link&&!link.startsWith('http')){showToast('Link must start with https://');return;}
-  const btn=document.getElementById('submit-btn');
-  btn.disabled=true;btn.textContent='Hanging…';
-  const{error}=await db.from('locks').insert([{lang,msg,tag:selectedTag,link:link||null}]);
-  btn.disabled=false;btn.textContent='🔒 Hang My Lock';
-  if(error){showToast('❌ Error. Try again.');console.error(error);return;}
-  closeAdd();showToast('🔒 Your lock is hung on the bridge!');loadLocks();
+
 }
-async function openView(lock){
+async function hangLock(){
+
+  const msg = document.getElementById('msg-input').value.trim();
+
+  // 🚫 Cooldown (5 sec)
+  const lastPost = localStorage.getItem('lastPostTime');
+  const now = Date.now();
+
+  if (lastPost && now - lastPost < 5000) {
+    showToast('⏳ Wait 5 seconds before posting again');
+    return;
+  }
+
+  // 🚫 Empty / short check
+  if (!msg) {
+    showToast('Write something first 💬');
+    return;
+  }
+
+  if (msg.length < 3) {
+    showToast('Write something meaningful 💬');
+    return;
+  }
+
+  // 🚫 Bad words filter
+  const bannedWords = ['fuck','shit','bitch','asshole'];
+
+  for (let word of bannedWords) {
+    if (msg.toLowerCase().includes(word)) {
+      showToast('⚠️ Please keep it respectful');
+      return;
+    }
+  }
+
+  const lang = document.getElementById('lang-select').value;
+  const link = document.getElementById('link-input').value.trim();
+
+  if(link && !link.startsWith('http')){
+    showToast('Link must start with https://');
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Hanging…';
+
+  const { error } = await db.from('locks').insert([
+    { lang, msg, tag: selectedTag, link: link || null }
+  ]);
+
+  btn.disabled = false;
+  btn.textContent = '🔒 Hang My Lock';
+
+  if(error){
+    showToast('❌ Error. Try again.');
+    console.error(error);
+    return;
+  }
+
+  // ✅ Save last post time
+  localStorage.setItem('lastPostTime', Date.now());
+
+  closeAdd();
+  showToast('🔒 Your lock is hung on the bridge!');
+  loadLocks();
+}
+
+  // 🚫 Minimum length
+  if (msg.length < 3) {
+    showToast('Write something meaningful 💬');
+    return;
+  }
+
+  // 🚫 Bad words filter
+  const bannedWords = ['fuck','shit','bitch','asshole'];
+
+  for (let word of bannedWords) {
+    if (msg.toLowerCase().includes(word)) {
+      showToast('⚠️ Please keep it respectful');
+      return;
+    }
+  }
   currentLockId=lock.id;
   document.getElementById('v-flag').textContent=(lock.lang||'🌍').split(' ')[0];
   document.getElementById('v-lang').textContent='Anonymous · '+(lock.lang||'').split(' ').slice(1).join(' ');
